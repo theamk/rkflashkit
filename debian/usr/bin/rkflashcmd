@@ -1,0 +1,11 @@
+#! /usr/bin/python
+# -*- coding: utf-8 -*
+
+import sys
+
+RKFLASHKIT_PATH = '/usr/share/rkflashkit/lib'
+
+if __name__ == '__main__':
+  sys.path.append(RKFLASHKIT_PATH)
+  from rkflashkit.rkcmd import cmdline_main
+  sys.exit(cmdline_main(sys.argv[1:]))

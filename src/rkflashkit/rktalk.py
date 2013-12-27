@@ -89,6 +89,7 @@ class RkOperation(object):
     self.__context.setDebug(3)
 
     devices = self.__context.getDeviceList()
+    self.__dev_handle = None
     for device in devices:
       if (is_rk_device(device)
           and device.getBusNumber() == bus_id and
@@ -124,6 +125,7 @@ class RkOperation(object):
   def __cmp_part_with_file(self, offset, size, file_name):
     self.__logger.log('\tComparing partition 0x%08X@0x%08X with file %s\n' % (
         offset, size, file_name))
+    errors = 0
     with open(file_name) as fh:
       while size > 0:
         if offset % RKFT_DISPLAY == 0:
@@ -140,16 +142,19 @@ class RkOperation(object):
           if block1 != block2:
             self.__logger.print_error(
                 '\tFlash memory at 0x%08x is differnt from file!\n' % offset)
+            errors += 1
         else:
           block2 = block2[:len(block1)]
           if block1 != block2:
             self.__logger.print_error(
                 '\tFlash memory at 0x%08x is differnt from file!\n' % offset)
+            errors += 1
 
         offset += RKFT_OFF_INCR
         size   -= RKFT_OFF_INCR
 
     self.__logger.print_done()
+    return errors
 
 
   def load_partitions(self):
@@ -209,10 +214,10 @@ class RkOperation(object):
   def cmp_part_with_file(self, offset, size, file_name):
     self.__init_device()
     self.__logger.print_dividor()
-    self.__cmp_part_with_file(offset, size, file_name)
+    errors = self.__cmp_part_with_file(offset, size, file_name)
+    return errors
 
-
-  def backup_partition(self, offset, size, file_name):
+  def backup_partition(self, offset, size, file_name, verify=True):
     self.__init_device()
 
     original_offset, original_size = offset, size
@@ -240,9 +245,10 @@ class RkOperation(object):
 
     self.__logger.print_done()
 
-    # Verify backup.
-    self.__logger.log('\n')
-    self.__cmp_part_with_file(original_offset, original_size, file_name)
+    if verify:
+      # Verify backup.
+      self.__logger.log('\n')
+      self.__cmp_part_with_file(original_offset, original_size, file_name)
 
 
   def erase_partition(self, offset, size):
@@ -275,4 +281,3 @@ class RkOperation(object):
     self.__logger.print_dividor()
     self.__logger.log('\tRebooting device\n')
     self.__logger.print_done()
-
