@@ -179,7 +179,7 @@ class RkOperation(object):
     return partitions
 
 
-  def flash_image_file(self, offset, size, file_name):
+  def flash_image_file(self, offset, size, file_name, verify=True):
     self.__init_device()
 
     original_offset, original_size = offset, size
@@ -206,9 +206,10 @@ class RkOperation(object):
 
     self.__logger.print_done()
 
-    # Validate partition.
-    self.__logger.log('\n')
-    self.__cmp_part_with_file(original_offset, original_size, file_name)
+    if verify:
+      # Validate partition.
+      self.__logger.log('\n')
+      self.__cmp_part_with_file(original_offset, original_size, file_name)
 
 
   def cmp_part_with_file(self, offset, size, file_name):

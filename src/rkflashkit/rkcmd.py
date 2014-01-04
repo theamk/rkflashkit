@@ -71,7 +71,7 @@ def cmdline_main(args):
     usage=
     '\n   %prog -l     -- list devices'
     '\n   %prog        -- list partitions'
-    '\n   %prog [ACTION filename] -- do ACTION (see --help)'
+    '\n   %prog [-p paritition] -ACTION [filename] -- do ACTION (see --help)'
     )
 
 
@@ -93,7 +93,8 @@ def cmdline_main(args):
   parser.add_option('-F', '--flash', action='store_true',
                     help='Flash file to partition')
   parser.add_option('-C', '--compare', action='store_true',
-                   help='Compare partition to file')
+                   help='Compare partition to file (highly recommended after '
+                    '-F or -B)')
   parser.add_option('-R', '--reboot', action='store_true',
                    help='Reboot device')
 
@@ -103,7 +104,7 @@ def cmdline_main(args):
     if args:
       parser.error('Unexpected argument')
 
-    device_uids, device_list = list_devices()
+    device_uids, device_list = rktalk.list_devices()
     print 'Devices:'
     for bus_id, dev_id, vendor_id, prod_id in device_list:
       dev_name = '0x%04x:0x%04x' % (vendor_id, prod_id)
@@ -152,13 +153,25 @@ def cmdline_main(args):
 
   min_addr = min(int(size, 16) for size, offset, name in partitions)
   if min_addr != 0:
-    partitions.append(("%08X" % min_addr, "0x%08X" % 0, "__head__"))
+    partitions.insert(0, ("%08X" % min_addr, "0x%08X" % 0, "__head__"))
 
   if not (part_commands or opts.reboot):
     print 'Partitions:'
+    last_end = 0
+    # Alignment is 4MB, apparently?
+    ALIGNMENT_BLOCKS = 4 * 1024 * 1024 / 512
+
     for size, offset, name in partitions:
-      print ' %-20s (%s @ %s, %6.1f MB)' % (
-        name, size, offset, int(size, 16)*512/1024.0/1024.0)
+      atags  =[]
+      if (int(offset, 16) % ALIGNMENT_BLOCKS):
+        atags.append(' unaligned')
+      gap = int(offset, 16) - last_end
+      last_end = int(offset, 16) + int(size, 16)
+      if gap and name != '__all__':
+        atags.append(' gap=%.1fkB' % (gap * 512 / 1024.0))
+      print ' %-20s (%s @ %s, %6.1f MB)%s' % (
+        name, size, offset, int(size, 16)*512/1024.0/1024.0,
+        ''.join(atags))
     return
 
   part_todo = list()
@@ -217,7 +230,7 @@ def cmdline_main(args):
       pass
 
     if opts.flash:
-      op.flash_image_file(p_offset, p_size, filename)
+      op.flash_image_file(p_offset, p_size, filename, verify=False)
       pass
 
     if opts.compare:
